@@ -6,11 +6,14 @@ const gulpSass = require('gulp-sass')(require('sass'));
 const gulpPostcss = require('gulp-postcss');
 const gulpInject = require('gulp-inject');
 const browser = require('browser-sync');
-const imagemin = require('gulp-imagemin');
+const gulpMiniCss = require('gulp-cssnano');
+// const imagemin = require('gulp-imagemin');
 const del = require('del');
-/**
- * @description html处理
- */
+
+/*=============================================
+=                   html处理                  =
+=============================================*/
+
 const htmlTask = () => {
   return src('./src/*.html', { base: './src' })
     .pipe(
@@ -23,9 +26,9 @@ const htmlTask = () => {
     .pipe(dest('./dist'));
 };
 
-/**
- * @description js 处理
- */
+/*=============================================
+=                    js 处理                  =
+=============================================*/
 const jsTask = () => {
   return src('./src/js/*.js', { base: './src' })
     .pipe(
@@ -48,35 +51,53 @@ const jsTask = () => {
     .pipe(dest('./dist'));
 };
 
-/**
- * @description scss 处理
- */
+/*=============================================
+=                   scss 处理                 =
+=============================================*/
+
 const scssTask = () => {
   return src('./src/scss/*.scss')
     .pipe(gulpSass())
     .pipe(gulpPostcss([require('postcss-preset-env')]))
+    .pipe(gulpMiniCss())
+    .pipe(dest('./dist/css'));
+};
+
+/*=============================================
+=                    css 处理                 =
+=============================================*/
+
+const cssTask = () => {
+  return src('./src/css/*.css')
+    .pipe(gulpPostcss([require('postcss-preset-env')]))
+    .pipe(gulpMiniCss())
     .pipe(dest('./dist/css'));
 };
 
 /**
- * @description 处理图片信息
+ * TODO 尝试了几个都不太行
+ * 处理图片信息
  */
 const imgTask = () => {
-  return src('./src/*', { base: './src' })
-    .pipe(imagemin())
-    .pipe(dest('./dist'));
+  return (
+    src('./src/images/**/*', { base: './src' })
+      // .pipe(imagemin())
+      .pipe(dest('./dist'))
+  );
 };
 
-/**
- * @description 将lib下文件copy到dist
- */
-const copy = () => {
-  return src('./src/lib/**/*', { base: './src' }).pipe(dest('./dist/lib'));
+/*=============================================
+=             将lib下文件copy到dist            =
+=============================================*/
+
+const libraryTask = () => {
+  return src('./src/library/**/*', { base: './src' }).pipe(dest('./dist'));
 };
 
-/**
- * @description 自动引入
- */
+/*=============================================
+=                    自动引入                  =
+=============================================*/
+
 const injectHtml = () => {
   return src('./dist/*.html')
     .pipe(
@@ -87,23 +108,26 @@ const injectHtml = () => {
     .pipe(dest('./dist'));
 };
 
-/**
- * @description 删除dist
- */
+/*=============================================
+=                    删除dist                 =
+=============================================*/
+
 const clean = () => {
   return del(['dist']);
 };
 
-/**
- * @description 本地环境
- */
+/*=============================================
+=                    本地环境                 =
+=============================================*/
+
 const bs = browser.create();
 const server = () => {
   watch('./src/*.html', series(htmlTask, injectHtml));
   watch('./src/js/*.js', series(jsTask, injectHtml));
   watch('./src/scss/*.scss', series(scssTask, injectHtml));
-  watch('./src/imgTask/*', series(imgTask));
-  watch('./src/lib/**/*', series(copy));
+  watch('./src/css/*.css', series(cssTask, injectHtml));
+  watch('./src/library/**/*', series(libraryTask));
+  watch('./src/images/**/*', series(imgTask));
   bs.init({
     port: 8090,
     open: true,
@@ -114,7 +138,7 @@ const server = () => {
 
 const buildTask = series(
   clean,
-  parallel(htmlTask, jsTask, scssTask, imgTask, copy),
+  parallel(htmlTask, jsTask, scssTask, cssTask, libraryTask, imgTask),
   injectHtml
 );
 const serverTask = series(buildTask, server);
